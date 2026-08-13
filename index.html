@@ -1,1 +1,2437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mira Solen — A Monograph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,200..900;1,9..144,200..900&family=JetBrains+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,200..700;1,6..72,200..700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --paper: #EFE8DA;
+  --paper-deep: #E4DBC4;
+  --paper-edge: #C9BFA4;
+  --ink: #16140F;
+  --ink-soft: #2D2A22;
+  --riso-red: #DE3D27;
+  --riso-blue: #1F3D8C;
+  --riso-yellow: #E8B33D;
+  --riso-pink: #E66A8E;
+  --riso-green: #2E6B3F;
+  --grid-line: rgba(22, 20, 15, 0.06);
+}
+
+html { scroll-behavior: smooth; background: var(--paper); }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  cursor: none;
+  position: relative;
+  font-feature-settings: "ss01";
+}
+
+@media (hover: none) {
+  body { cursor: auto; }
+  .cursor-dot, .cursor-canvas { display: none !important; }
+}
+
+a { color: inherit; text-decoration: none; cursor: none; }
+button { cursor: none; font-family: inherit; }
+
+/* ===== Custom cursor + trail ===== */
+.cursor-dot {
+  position: fixed; left: 0; top: 0;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--riso-red);
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: multiply;
+  transition: width 0.25s, height 0.25s, background 0.25s;
+}
+.cursor-dot.hover { width: 32px; height: 32px; background: var(--riso-blue); }
+.cursor-dot.grab { width: 18px; height: 18px; background: var(--ink); }
+
+.cursor-canvas {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: multiply;
+}
+
+/* ===== Grain ===== */
+.grain {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>");
+}
+
+/* ===== Crop marks ===== */
+.crop-mark {
+  position: fixed; width: 18px; height: 18px;
+  z-index: 50; pointer-events: none; opacity: 0.55;
+}
+.crop-mark::before, .crop-mark::after {
+  content: ''; position: absolute; background: var(--ink);
+}
+.crop-mark::before { width: 1px; height: 100%; left: 50%; }
+.crop-mark::after { width: 100%; height: 1px; top: 50%; }
+.crop-mark.tl { top: 14px; left: 14px; }
+.crop-mark.tr { top: 14px; right: 14px; }
+.crop-mark.bl { bottom: 14px; left: 14px; }
+.crop-mark.br { bottom: 14px; right: 14px; }
+
+/* ===== Top nav / running header ===== */
+.top-nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  padding: 1.1rem 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  z-index: 100;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.top-nav > * { pointer-events: auto; }
+.top-nav .center { text-align: center; }
+.top-nav .right { text-align: right; }
+.top-nav .center span::before { content: '— '; opacity: 0.5; }
+.top-nav .center span::after { content: ' —'; opacity: 0.5; }
+
+/* ===== Page progress (side) ===== */
+.page-progress {
+  position: fixed; right: 24px; top: 50%;
+  transform: translateY(-50%);
+  z-index: 90;
+  display: flex; flex-direction: column;
+  gap: 14px;
+  mix-blend-mode: multiply;
+}
+.page-progress a {
+  width: 18px; height: 2px;
+  background: var(--ink);
+  opacity: 0.18;
+  transition: opacity 0.3s, width 0.3s;
+  display: block;
+}
+.page-progress a.active { opacity: 1; width: 32px; background: var(--riso-red); }
+.page-progress a:hover { opacity: 0.7; }
+
+/* ===== Section base ===== */
+.section { position: relative; padding: 7rem 2.5rem 5rem; min-height: 100vh; }
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 2.5rem;
+  display: flex; align-items: center; gap: 1rem;
+}
+.section-label::before {
+  content: ''; width: 36px; height: 1px;
+  background: var(--ink);
+}
+.page-num {
+  position: absolute;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  bottom: 2rem; right: 2.5rem;
+}
+.page-num-left {
+  position: absolute;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  bottom: 2rem; left: 2.5rem;
+}
+
+/* ===== HERO ===== */
+.hero {
+  min-height: 100vh;
+  padding: 4rem 2.5rem 2.5rem;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.hero-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.hero-edition {
+  border: 1px solid var(--ink);
+  padding: 5px 11px;
+  display: flex; align-items: center; gap: 8px;
+}
+.hero-edition::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--riso-red); border-radius: 50%;
+}
+
+.hero-name {
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  font-size: clamp(72px, 21vw, 340px);
+  line-height: 0.82;
+  letter-spacing: -0.05em;
+  font-variation-settings: "opsz" 144;
+  margin: 1rem 0;
+  position: relative;
+  user-select: none;
+}
+.hero-name .line { display: block; position: relative; }
+.hero-name .line:nth-child(2) { padding-left: 0.04em; }
+
+.hero-letter {
+  display: inline-block;
+  position: relative;
+  opacity: 0;
+  animation: letterIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--delay, 0s);
+}
+.hero-letter .ghost-red, .hero-letter .ghost-blue, .hero-letter .main {
+  display: block;
+}
+.hero-letter .ghost-red, .hero-letter .ghost-blue {
+  position: absolute; top: 0; left: 0;
+  opacity: 0;
+  mix-blend-mode: multiply;
+  animation: ghostIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--delay, 0s);
+}
+.hero-letter .ghost-red { color: var(--riso-red); }
+.hero-letter .ghost-blue { color: var(--riso-blue); }
+
+@keyframes letterIn {
+  0% { opacity: 0; transform: translateY(80px) rotate(-3deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(0); }
+}
+@keyframes ghostIn {
+  0% { opacity: 0; transform: translate(-28px, 80px); }
+  35% { opacity: 0.85; transform: translate(-12px, 16px); }
+  100% { opacity: 0; transform: translate(0, 0); }
+}
+
+.hero-bottom {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.hero-bottom .center {
+  text-align: center;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.7;
+}
+.hero-disciplines { text-align: right; line-height: 1.7; }
+.hero-disciplines strong { color: var(--riso-red); font-weight: 500; }
+
+.hero-rotate-mark {
+  position: absolute;
+  top: 50%; right: 2.5rem;
+  transform: translateY(-50%) rotate(90deg);
+  transform-origin: right center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+/* ===== INDEX ===== */
+.index-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr;
+  gap: 5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.index-intro {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(22px, 2.4vw, 32px);
+  line-height: 1.2;
+  font-weight: 300;
+}
+.index-intro em { font-style: italic; color: var(--riso-red); }
+.index-intro::after {
+  content: ''; display: block;
+  width: 60px; height: 1px;
+  background: var(--ink);
+  margin-top: 2rem;
+}
+.index-meta {
+  margin-top: 2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.8;
+  color: var(--ink-soft);
+}
+.index-meta strong { color: var(--ink); font-weight: 500; }
+
+.index-list { list-style: none; }
+.index-list li {
+  display: grid;
+  grid-template-columns: 50px 1fr 80px;
+  align-items: baseline;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid rgba(22, 20, 15, 0.18);
+  font-family: 'Fraunces', serif;
+  font-size: clamp(20px, 2.1vw, 28px);
+  font-weight: 400;
+  transition: padding 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+.index-list li::before {
+  content: '→';
+  position: absolute;
+  left: -1.5rem; top: 50%;
+  transform: translateY(-50%) translateX(-20px);
+  opacity: 0;
+  color: var(--riso-red);
+  transition: all 0.4s;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+}
+.index-list li:hover { padding-left: 1.5rem; }
+.index-list li:hover::before { opacity: 1; transform: translateY(-50%) translateX(0); }
+.index-list li:hover .title { font-style: italic; color: var(--riso-red); }
+.index-list .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+}
+.index-list .page {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: right;
+  letter-spacing: 0.05em;
+}
+
+/* ===== PROJECT SPREADS ===== */
+.spread {
+  position: relative;
+  padding: 7rem 2.5rem 6rem;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.spread-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 3rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--ink);
+}
+.spread-header .right { text-align: right; }
+.spread-header .center { text-align: center; }
+.spread-header strong { color: var(--riso-red); font-weight: 500; }
+
+.spread-body {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 4rem;
+  align-items: start;
+  flex: 1;
+  max-width: 1500px;
+}
+
+.spread-title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(48px, 7.5vw, 120px);
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  font-weight: 400;
+  margin-bottom: 2rem;
+  font-variation-settings: "opsz" 144;
+}
+.spread-title em {
+  font-style: italic;
+  color: var(--riso-red);
+  font-weight: 300;
+}
+
+.spread-meta {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 0.6rem 1.5rem;
+  margin-bottom: 2.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(22, 20, 15, 0.15);
+}
+.spread-meta dt { color: var(--ink-soft); }
+.spread-meta dd { color: var(--ink); }
+
+.spread-copy {
+  font-family: 'Newsreader', serif;
+  font-size: 17px;
+  line-height: 1.55;
+  max-width: 46ch;
+}
+.spread-copy p + p { margin-top: 1.1rem; }
+.spread-copy .dropcap::first-letter {
+  font-family: 'Fraunces', serif;
+  font-size: 4.5em;
+  float: left;
+  line-height: 0.85;
+  margin: 0.08em 0.1em 0 -0.04em;
+  font-weight: 700;
+  color: var(--riso-red);
+  font-style: italic;
+}
+.spread-copy em { font-style: italic; }
+.spread-copy strong { font-weight: 600; }
+
+.spread-pullquote {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 2rem 0;
+  padding-left: 1.5rem;
+  border-left: 2px solid var(--riso-red);
+  color: var(--ink-soft);
+}
+
+.spread-visual {
+  position: relative;
+  aspect-ratio: 4/5;
+  background: var(--paper-deep);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(22, 20, 15, 0.12);
+}
+.spread-visual::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: 
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+.spread-visual-label {
+  position: absolute;
+  top: 1rem; left: 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  z-index: 2;
+}
+.spread-visual-corner {
+  position: absolute;
+  bottom: 1rem; right: 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  z-index: 2;
+}
+
+.visual-stage {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.logo-svg {
+  width: 80%; height: 80%;
+  position: relative;
+  z-index: 1;
+}
+.logo-svg.in-view [data-anim] { animation: var(--anim-name) 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* === Visual 1: Solen Display — letterform with construction === */
+.v1-letter {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(180px, 28vw, 360px);
+  line-height: 1;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--ink);
+  position: relative;
+  z-index: 2;
+}
+.v1-ghost {
+  position: absolute;
+  font-family: 'Fraunces', serif;
+  font-size: clamp(180px, 28vw, 360px);
+  line-height: 1;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--riso-red);
+  opacity: 0;
+  mix-blend-mode: multiply;
+  z-index: 1;
+}
+.in-view .v1-ghost {
+  animation: v1Ghost 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes v1Ghost {
+  0% { opacity: 0; transform: translate(-30px, 20px); }
+  40% { opacity: 0.5; transform: translate(-10px, 5px); }
+  100% { opacity: 0; transform: translate(0, 0); }
+}
+.v1-metrics {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.v1-metrics .mline {
+  position: absolute;
+  left: 5%; right: 5%;
+  height: 1px;
+  background: var(--riso-blue);
+  opacity: 0;
+}
+.in-view .v1-metrics .mline {
+  animation: metricIn 1s 0.5s ease-out forwards;
+}
+@keyframes metricIn { to { opacity: 0.4; } }
+.v1-metrics .mlabel {
+  position: absolute;
+  right: 5%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--riso-blue);
+  background: var(--paper-deep);
+  padding: 1px 4px;
+  opacity: 0;
+}
+.in-view .v1-metrics .mlabel {
+  animation: metricIn 1s 0.7s ease-out forwards;
+}
+
+/* === Visual 2: Amassa Coffee — packaging build === */
+.v2-bag {
+  position: relative;
+  width: 60%; height: 80%;
+}
+.in-view .v2-bag-outline {
+  animation: drawStroke 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+}
+@keyframes drawStroke { to { stroke-dashoffset: 0; } }
+.in-view .v2-bag-fill {
+  animation: fadeIn 0.8s 1.2s ease-out forwards;
+  opacity: 0;
+}
+.in-view .v2-bag-label {
+  animation: fadeIn 0.8s 1.6s ease-out forwards;
+  opacity: 0;
+}
+@keyframes fadeIn { to { opacity: 1; } }
+
+/* === Visual 3: Avignon posters — stack/fan === */
+.v3-stack {
+  position: relative;
+  width: 75%; height: 88%;
+}
+.v3-poster {
+  position: absolute;
+  width: 60%;
+  aspect-ratio: 2/3;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  padding: 1rem;
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-family: 'Fraunces', serif;
+  opacity: 0;
+  transform: translateX(-60px) rotate(0);
+}
+.in-view .v3-poster {
+  animation: posterIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes posterIn {
+  to { opacity: 1; transform: translateX(0) rotate(var(--r, 0deg)); }
+}
+.v3-poster:nth-child(1) { left: 0; top: 5%; --r: -6deg; --d: 0s; animation-delay: 0.1s; background: var(--paper); }
+.v3-poster:nth-child(2) { left: 12%; top: 8%; --r: -2deg; animation-delay: 0.25s; background: var(--riso-red); color: var(--paper); }
+.v3-poster:nth-child(3) { left: 24%; top: 4%; --r: 3deg; animation-delay: 0.4s; background: var(--paper); }
+.v3-poster:nth-child(4) { left: 36%; top: 10%; --r: 8deg; animation-delay: 0.55s; background: var(--ink); color: var(--paper); }
+.v3-poster .ph { font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 0.15em; text-transform: uppercase; }
+.v3-poster .pt { font-size: 28px; line-height: 0.95; font-weight: 500; font-style: italic; }
+.v3-poster .pf { font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* === Visual 4: Maison Verte — logo construct === */
+.v4-logo {
+  position: relative;
+  width: 70%; aspect-ratio: 1;
+}
+.in-view .v4-circle { animation: v4Scale 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: center; transform: scale(0); }
+.in-view .v4-leaf { animation: v4Draw 1.2s 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; stroke-dasharray: 600; stroke-dashoffset: 600; }
+.in-view .v4-stem { animation: v4Draw 1s 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; stroke-dasharray: 200; stroke-dashoffset: 200; }
+.in-view .v4-label { animation: fadeIn 0.6s 1.4s ease-out forwards; opacity: 0; }
+@keyframes v4Scale { to { transform: scale(1); } }
+@keyframes v4Draw { to { stroke-dashoffset: 0; } }
+.v4-label {
+  position: absolute;
+  bottom: 8%; left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 18px;
+  letter-spacing: 0.05em;
+}
+
+/* === Visual 5: On Margin — book spread === */
+.v5-book {
+  position: relative;
+  width: 90%; height: 75%;
+  display: flex;
+  perspective: 1200px;
+}
+.v5-page {
+  flex: 1;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  padding: 1.5rem;
+  position: relative;
+  transform-origin: center;
+  opacity: 0;
+}
+.in-view .v5-page-left { animation: pageOpenL 1.2s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.in-view .v5-page-right { animation: pageOpenR 1.2s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes pageOpenL {
+  0% { opacity: 0; transform: rotateY(90deg); }
+  100% { opacity: 1; transform: rotateY(0); }
+}
+@keyframes pageOpenR {
+  0% { opacity: 0; transform: rotateY(-90deg); }
+  100% { opacity: 1; transform: rotateY(0); }
+}
+.v5-page .ptitle {
+  font-family: 'Fraunces', serif;
+  font-size: 16px; font-style: italic;
+  margin-bottom: 1rem; color: var(--riso-red);
+}
+.v5-page .ptext {
+  font-family: 'Newsreader', serif;
+  font-size: 9px; line-height: 1.5;
+  column-count: 1;
+  color: var(--ink-soft);
+}
+.v5-page-right { border-left: none; }
+.v5-spine {
+  position: absolute; left: 50%; top: 0; bottom: 0;
+  width: 1px; background: var(--ink);
+  z-index: 2;
+}
+
+/* ===== TYPE SPECIMENS ===== */
+.specimens {
+  background: var(--paper-deep);
+  overflow: hidden;
+}
+.specimens-stage {
+  position: relative;
+  height: 70vh;
+  min-height: 540px;
+  margin-top: 3rem;
+  overflow: hidden;
+}
+.specimen {
+  position: absolute;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  padding: 1.4rem 1.4rem 1.2rem;
+  width: 260px;
+  box-shadow: 6px 6px 0 var(--ink);
+  user-select: none;
+  touch-action: none;
+  transition: box-shadow 0.25s;
+  will-change: transform;
+}
+.specimen:hover { box-shadow: 10px 10px 0 var(--riso-red); }
+.specimen.dragging { box-shadow: 12px 12px 0 var(--riso-red); transition: none; }
+.specimen-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--ink);
+  margin-bottom: 0.8rem;
+}
+.specimen-letter {
+  font-family: 'Fraunces', serif;
+  font-size: 150px;
+  line-height: 0.82;
+  text-align: center;
+  margin: 0.5rem 0 0.8rem;
+  color: var(--ink);
+}
+.specimen-letter.italic { font-style: italic; color: var(--riso-red); }
+.specimen-info {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 0.7rem;
+  color: var(--ink-soft);
+}
+.specimen-alphabet {
+  font-family: 'Fraunces', serif;
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  padding: 0.6rem 0;
+  border-top: 1px solid rgba(22, 20, 15, 0.2);
+  border-bottom: 1px solid rgba(22, 20, 15, 0.2);
+  margin-bottom: 0.7rem;
+}
+.specimen-download {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: none; border: none; padding: 0;
+  width: 100%;
+}
+.specimen-download:hover { color: var(--riso-red); }
+.specimen-download::after { content: '↓'; transition: transform 0.3s; }
+.specimen-download:hover::after { transform: translateY(3px); }
+
+.specimens-instructions {
+  text-align: center;
+  margin-top: 2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.specimens-instructions span { color: var(--riso-red); }
+
+/* ===== COLOR PALETTE ===== */
+.palette {
+  background: var(--ink);
+  color: var(--paper);
+}
+.palette .section-label { color: rgba(239, 232, 218, 0.6); }
+.palette .section-label::before { background: var(--paper); }
+.palette-display {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  margin: 3rem 0;
+  max-width: 1300px;
+  margin-left: auto; margin-right: auto;
+}
+.palette-swatch-big {
+  aspect-ratio: 4/3;
+  background: var(--current-color, var(--riso-red));
+  position: relative;
+  transition: background 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(239, 232, 218, 0.15);
+}
+.palette-swatch-big::before, .palette-swatch-big::after {
+  content: ''; position: absolute;
+  width: 16px; height: 16px;
+  border: 1px solid var(--paper);
+}
+.palette-swatch-big::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.palette-swatch-big::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+.palette-info { font-family: 'Fraunces', serif; }
+.palette-info .name {
+  font-size: clamp(48px, 6vw, 96px);
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+  font-variation-settings: "opsz" 144;
+}
+.palette-info .name em { font-style: italic; color: var(--riso-red); }
+.palette-info .meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+  opacity: 0.7;
+  display: flex; gap: 2rem; flex-wrap: wrap;
+}
+.palette-info .description {
+  font-size: 18px;
+  line-height: 1.55;
+  font-style: italic;
+  max-width: 38ch;
+  opacity: 0.85;
+}
+
+.film-strip-wrap {
+  position: relative;
+  margin-top: 4rem;
+  padding: 2.5rem 0;
+  border-top: 1px solid rgba(239, 232, 218, 0.2);
+  border-bottom: 1px solid rgba(239, 232, 218, 0.2);
+  overflow: hidden;
+}
+.film-perforations {
+  position: absolute;
+  left: 0; right: 0; height: 14px;
+  display: flex; justify-content: space-around;
+  pointer-events: none;
+}
+.film-perforations.top { top: 6px; }
+.film-perforations.bottom { bottom: 6px; }
+.film-perforations span {
+  width: 18px; height: 8px;
+  background: var(--ink);
+  border: 1px solid rgba(239, 232, 218, 0.25);
+}
+.film-strip {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem 0;
+}
+.film-strip-track {
+  display: flex; gap: 6px;
+  padding: 0 50vw;
+  will-change: transform;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.film-strip-track.dragging { transition: none; }
+.film-frame {
+  flex-shrink: 0;
+  width: 110px; height: 150px;
+  position: relative;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--paper);
+  border: 1px solid rgba(239, 232, 218, 0.2);
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.3s, outline 0.3s;
+  outline: 0 solid var(--paper);
+  outline-offset: 0;
+}
+.film-frame .num { opacity: 0.6; font-size: 8px; }
+.film-frame .nm { font-family: 'Fraunces', serif; font-size: 14px; font-style: italic; text-transform: none; letter-spacing: 0; }
+.film-frame .hex { opacity: 0.8; font-size: 9px; }
+.film-frame.active {
+  outline: 2px solid var(--paper);
+  outline-offset: 4px;
+  transform: scale(1.05);
+}
+
+/* ===== LECTURES ===== */
+.lecture-featured {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 4rem;
+  margin: 3rem 0;
+  max-width: 1400px;
+}
+.lecture-video {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: var(--ink);
+  color: var(--paper);
+  overflow: hidden;
+  border: 1px solid var(--ink);
+}
+.lecture-video-poster {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: linear-gradient(135deg, #1a1814 0%, #2a2520 100%);
+}
+.lecture-video-poster::before {
+  content: 'MIRA SOLEN · ON MARGIN';
+  position: absolute;
+  top: 1.2rem; left: 1.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(239, 232, 218, 0.6);
+}
+.lecture-video-poster::after {
+  content: '00:30';
+  position: absolute;
+  bottom: 1.2rem; right: 1.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(239, 232, 218, 0.6);
+}
+.play-button {
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  border: 2px solid var(--paper);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.3s, background 0.3s, border-color 0.3s;
+}
+.play-button::before {
+  content: '';
+  width: 0; height: 0;
+  border-left: 20px solid var(--paper);
+  border-top: 13px solid transparent;
+  border-bottom: 13px solid transparent;
+  margin-left: 5px;
+  transition: border-color 0.3s;
+}
+.lecture-video:hover .play-button {
+  background: var(--riso-red);
+  border-color: var(--riso-red);
+  transform: scale(1.08);
+}
+.lecture-video-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: none;
+}
+.lecture-video.playing .lecture-video-poster { display: none; }
+.lecture-video.playing .lecture-video-canvas { display: block; }
+
+.lecture-info {
+  display: flex; flex-direction: column;
+  justify-content: center;
+}
+.lecture-info .lmeta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  display: flex; gap: 1.5rem;
+  color: var(--ink-soft);
+}
+.lecture-info .lmeta strong { color: var(--riso-red); font-weight: 500; }
+.lecture-info .title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(36px, 4.5vw, 64px);
+  line-height: 0.95;
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.lecture-info .title em { font-style: italic; color: var(--riso-red); }
+.lecture-info .description {
+  font-size: 17px;
+  line-height: 1.55;
+  margin-bottom: 1.5rem;
+  max-width: 38ch;
+}
+.lecture-info .description em { font-style: italic; }
+
+.lecture-list {
+  margin-top: 4rem;
+  border-top: 1px solid var(--ink);
+}
+.lecture-list-head {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 110px;
+  padding: 1rem 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 1px solid rgba(22, 20, 15, 0.2);
+}
+.lecture-list-head .right { text-align: right; }
+.lecture-list-item {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 110px;
+  padding: 1.4rem 0;
+  border-bottom: 1px solid rgba(22, 20, 15, 0.15);
+  align-items: baseline;
+  transition: padding 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+.lecture-list-item:hover { padding-left: 1rem; }
+.lecture-list-item:hover .lecture-title { font-style: italic; color: var(--riso-red); }
+.lecture-list-item .date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+.lecture-list-item .lecture-title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 400;
+  transition: font-style 0.3s, color 0.3s;
+}
+.lecture-list-item .venue {
+  font-family: 'Newsreader', serif;
+  font-size: 15px;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+.lecture-list-item .duration {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+/* ===== COLOPHON / CONTACT ===== */
+.colophon {
+  padding: 7rem 2.5rem 3rem;
+  min-height: 100vh;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+.colophon .section-label { color: rgba(239, 232, 218, 0.6); }
+.colophon .section-label::before { background: var(--paper); }
+.colophon-main {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 4rem;
+  flex: 1;
+  align-items: center;
+  max-width: 1500px;
+}
+.colophon-headline {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(72px, 14vw, 240px);
+  line-height: 0.82;
+  letter-spacing: -0.045em;
+  font-weight: 300;
+  font-variation-settings: "opsz" 144;
+}
+.colophon-headline em {
+  font-style: italic;
+  color: var(--riso-red);
+  font-weight: 400;
+}
+.colophon-headline .dot { color: var(--riso-red); }
+
+.colophon-details {
+  font-family: 'Newsreader', serif;
+  font-size: 17px;
+  line-height: 1.55;
+}
+.colophon-details a {
+  color: var(--paper);
+  border-bottom: 1px solid rgba(239, 232, 218, 0.4);
+  transition: color 0.3s, border-color 0.3s;
+}
+.colophon-details a:hover {
+  color: var(--riso-red);
+  border-color: var(--riso-red);
+}
+.colophon-details p + p { margin-top: 1rem; }
+.colophon-details .label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(239, 232, 218, 0.5);
+  margin-bottom: 0.4rem;
+  display: block;
+}
+.colophon-details .block + .block { margin-top: 2rem; }
+
+.colophon-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  padding-top: 2.5rem;
+  border-top: 1px solid rgba(239, 232, 218, 0.15);
+  gap: 1rem;
+}
+.colophon-bottom .center { text-align: center; }
+.colophon-bottom .right { text-align: right; }
+
+/* ===== Reveal ===== */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 1.1s cubic-bezier(0.16, 1, 0.3, 1), transform 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.in-view { opacity: 1; transform: translateY(0); }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.9rem 1.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  z-index: 10001;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--riso-red);
+  display: flex; align-items: center; gap: 0.7rem;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast::before {
+  content: ''; width: 8px; height: 8px;
+  background: var(--riso-red); border-radius: 50%;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .section, .spread, .colophon { padding: 5rem 1.25rem 4rem; }
+  .hero { padding: 3rem 1.25rem 1.5rem; }
+  .spread-body { grid-template-columns: 1fr; gap: 2.5rem; }
+  .palette-display, .lecture-featured, .colophon-main, .index-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .top-nav { padding: 0.9rem 1.25rem; font-size: 9px; }
+  .page-progress { display: none; }
+  .crop-mark { display: none; }
+  .lecture-list-head, .lecture-list-item { grid-template-columns: 80px 1fr 80px; }
+  .lecture-list-item .venue { display: none; }
+  .colophon-bottom { grid-template-columns: 1fr; gap: 0.5rem; text-align: left !important; }
+  .colophon-bottom .center, .colophon-bottom .right { text-align: left; }
+  .specimens-stage { height: 100vh; min-height: 600px; }
+  .film-frame { width: 80px; height: 120px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Custom cursor + trail -->
+<div class="cursor-dot"></div>
+<canvas class="cursor-canvas"></canvas>
+<div class="grain"></div>
+
+<!-- Crop marks -->
+<div class="crop-mark tl"></div>
+<div class="crop-mark tr"></div>
+<div class="crop-mark bl"></div>
+<div class="crop-mark br"></div>
+
+<!-- Top navigation -->
+<nav class="top-nav">
+  <div class="left">Mira Solen — Monograph</div>
+  <div class="center"><span id="current-section">Cover</span></div>
+  <div class="right">Ed. 01 / MMXXIV</div>
+</nav>
+
+<!-- Side progress -->
+<aside class="page-progress" id="page-progress"></aside>
+
+<!-- ============================================ -->
+<!-- HERO / COVER -->
+<!-- ============================================ -->
+<section class="hero" id="cover" data-section="Cover">
+  <div class="hero-top">
+    <div>A Monograph<br>Selected Works</div>
+    <div class="hero-edition">First Edition, 2024</div>
+  </div>
+
+  <h1 class="hero-name" aria-label="Mira Solen">
+    <span class="line">
+      <span class="hero-letter" style="--delay:.05s"><span class="ghost-red">M</span><span class="ghost-blue">M</span><span class="main">M</span></span>
+      <span class="hero-letter" style="--delay:.15s"><span class="ghost-red">I</span><span class="ghost-blue">I</span><span class="main">I</span></span>
+      <span class="hero-letter" style="--delay:.25s"><span class="ghost-red">R</span><span class="ghost-blue">R</span><span class="main">R</span></span>
+      <span class="hero-letter" style="--delay:.35s"><span class="ghost-red">A</span><span class="ghost-blue">A</span><span class="main">A</span></span>
+    </span>
+    <span class="line">
+      <span class="hero-letter" style="--delay:.55s"><span class="ghost-red">S</span><span class="ghost-blue">S</span><span class="main">S</span></span>
+      <span class="hero-letter" style="--delay:.65s"><span class="ghost-red">O</span><span class="ghost-blue">O</span><span class="main">O</span></span>
+      <span class="hero-letter" style="--delay:.75s"><span class="ghost-red">L</span><span class="ghost-blue">L</span><span class="main">L</span></span>
+      <span class="hero-letter" style="--delay:.85s"><span class="ghost-red">E</span><span class="ghost-blue">E</span><span class="main">E</span></span>
+      <span class="hero-letter" style="--delay:.95s"><span class="ghost-red">N</span><span class="ghost-blue">N</span><span class="main">N</span></span>
+    </span>
+  </h1>
+
+  <div class="hero-bottom">
+    <div>Brand · Identity<br>Type · Editorial</div>
+    <div class="center">— Selected works, 2014—2024 —</div>
+    <div class="hero-disciplines">Set in <strong>Fraunces</strong> &<br>Newsreader. Printed<br>in pixels, Berlin.</div>
+  </div>
+
+  <div class="hero-rotate-mark">Monograph 01 / 2024 — Mira Solen — Brand & Graphic Design</div>
+</section>
+
+<!-- ============================================ -->
+<!-- INDEX -->
+<!-- ============================================ -->
+<section class="section" id="index" data-section="Index">
+  <div class="section-label">Index — Contents</div>
+  <div class="index-grid">
+    <div>
+      <p class="index-intro">A collected survey of work made between <em>2014 and 2024</em> — type, identity, packaging, and the long argument between them.</p>
+      <div class="index-meta">
+        <strong>96 pages</strong> · 5 projects<br>
+        <strong>4 typefaces</strong> · 1 institution<br>
+        <strong>1 designer</strong> · 0 apologies
+      </div>
+    </div>
+    <ol class="index-list">
+      <li><span class="num">01</span><span class="title">Solen Display</span><span class="page">p. 008</span></li>
+      <li><span class="num">02</span><span class="title">Amassa Coffee</span><span class="page">p. 024</span></li>
+      <li><span class="num">03</span><span class="title">Festival d'Avignon</span><span class="page">p. 040</span></li>
+      <li><span class="num">04</span><span class="title">Maison Verte</span><span class="page">p. 056</span></li>
+      <li><span class="num">05</span><span class="title">On Margin</span><span class="page">p. 072</span></li>
+      <li><span class="num">—</span><span class="title">Type Specimens</span><span class="page">p. 088</span></li>
+      <li><span class="num">—</span><span class="title">Color Palette</span><span class="page">p. 104</span></li>
+      <li><span class="num">—</span><span class="title">Lectures & Talks</span><span class="page">p. 116</span></li>
+      <li><span class="num">—</span><span class="title">Colophon</span><span class="page">p. 128</span></li>
+    </ol>
+  </div>
+  <div class="page-num">ii</div>
+</section>
+
+<!-- ============================================ -->
+<!-- PROJECT 01 — SOLEN DISPLAY -->
+<!-- ============================================ -->
+<section class="spread" id="project-01" data-section="01 — Solen Display">
+  <div class="spread-header">
+    <div>Project <strong>01</strong> / 05</div>
+    <div class="center">Type Design</div>
+    <div class="right">2014—2024</div>
+  </div>
+  <div class="spread-body">
+    <div>
+      <div class="spread-meta">
+        <dt>Client</dt><dd>Self-initiated</dd>
+        <dt>Year</dt><dd>2023</dd>
+        <dt>Discipline</dt><dd>Typeface</dd>
+        <dt>Weights</dt><dd>4 + Italics</dd>
+        <dt>Glyphs</dt><dd>742 per style</dd>
+        <dt>Scripts</dt><dd>Latin Extended</dd>
+      </div>
+      <h2 class="spread-title">Solen<br><em>Display</em></h2>
+      <div class="spread-copy">
+        <p class="dropcap">A serif drawn for the screen but raised on paper. Solen Display began as a custom face for the Maison Verte identity, then grew into a four-weight family with matching italics drawn by hand from a 1962 specimen of Aldus.</p>
+        <p>The italic carries the family's argument: that screens can still carry the trace of the hand, and that a typeface made in 2023 has the right to look like it was printed in 1962.</p>
+        <p>The display weights were drawn first; the text weights are <em>not</em> derived from them — they were drawn separately, at a smaller optical size, with tighter joins and a narrower body. The two cousins share a family name and little else.</p>
+      </div>
+      <div class="spread-pullquote">"The italic is the argument. The roman is just where the argument lives."</div>
+    </div>
+    <div class="spread-visual">
+      <span class="spread-visual-label">Fig. 01 — Italic, 360pt</span>
+      <div class="visual-stage">
+        <div class="v1-ghost">S</div>
+        <div class="v1-letter">S</div>
+        <div class="v1-metrics">
+          <div class="mline" style="top: 12%;"></div>
+          <div class="mlabel" style="top: 12%; transform: translateY(-50%);">Cap height</div>
+          <div class="mline" style="top: 32%;"></div>
+          <div class="mlabel" style="top: 32%; transform: translateY(-50%);">x-height</div>
+          <div class="mline" style="top: 78%;"></div>
+          <div class="mlabel" style="top: 78%; transform: translateY(-50%);">Baseline</div>
+          <div class="mline" style="top: 92%;"></div>
+          <div class="mlabel" style="top: 92%; transform: translateY(-50%);">Descender</div>
+        </div>
+      </div>
+      <span class="spread-visual-corner">Solen-Italic / 600</span>
+    </div>
+  </div>
+  <div class="page-num">008</div>
+  <div class="page-num-left">Solen Display</div>
+</section>
+
+<!-- ============================================ -->
+<!-- PROJECT 02 — AMASSA COFFEE -->
+<!-- ============================================ -->
+<section class="spread" id="project-02" data-section="02 — Amassa Coffee">
+  <div class="spread-header">
+    <div>Project <strong>02</strong> / 05</div>
+    <div class="center">Packaging System</div>
+    <div class="right">2014—2024</div>
+  </div>
+  <div class="spread-body">
+    <div>
+      <div class="spread-meta">
+        <dt>Client</dt><dd>Amassa Coffee</dd>
+        <dt>Year</dt><dd>2022</dd>
+        <dt>Discipline</dt><dd>Packaging</dd>
+        <dt>Farms</dt><dd>12, Minas Gerais</dd>
+        <dt>Materials</dt><dd>Kraft + Riso sleeve</dd>
+        <dt>Awards</dt><dd>Brand New, 2023</dd>
+      </div>
+      <h2 class="spread-title">Amassa<br><em>Coffee</em></h2>
+      <div class="spread-copy">
+        <p class="dropcap">Twelve farms, one bag system. Amassa asked for packaging that could travel from Minas to Melbourne without losing its origin. The solution: a single die-cut sleeve that wraps a kraft bag, with the farm's coordinates printed in a tear-off tab.</p>
+        <p>The bag inside stays the same. The sleeve does all the talking — set in Solen Display italic, with the altitude, varietal, and harvest date in a single justified column on the back.</p>
+        <p>The sleeves are risograph-printed in two colors: a farm-specific ink (chosen by the farmer) plus a universal black. The result is that <strong>no two sleeves are exactly alike</strong> — a feature the roaster initially called a bug.</p>
+      </div>
+      <div class="spread-pullquote">"The bag is the same. The sleeve is the farm. The farmer picks the ink."</div>
+    </div>
+    <div class="spread-visual">
+      <span class="spread-visual-label">Fig. 02 — Sleeve, die-cut</span>
+      <div class="visual-stage">
+        <svg class="logo-svg v2-bag" viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">
+          <!-- Bag outline -->
+          <path class="v2-bag-outline" d="M 60 80 L 60 380 Q 60 400 80 400 L 220 400 Q 240 400 240 380 L 240 80 L 215 60 L 215 80 L 185 60 L 185 80 L 155 60 L 155 80 L 125 60 L 125 80 L 85 60 Z" 
+                fill="none" stroke="#16140F" stroke-width="2" stroke-linejoin="round"/>
+          <!-- Bag fill -->
+          <rect class="v2-bag-fill" x="62" y="82" width="176" height="316" fill="#E4DBC4"/>
+          <!-- Label -->
+          <g class="v2-bag-label">
+            <rect x="80" y="140" width="140" height="180" fill="#EFE8DA" stroke="#16140F" stroke-width="1"/>
+            <text x="150" y="180" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="28" font-weight="600" fill="#16140F">Amassa</text>
+            <line x1="95" y1="195" x2="205" y2="195" stroke="#16140F" stroke-width="0.5"/>
+            <text x="150" y="215" text-anchor="middle" font-family="JetBrains Mono" font-size="7" letter-spacing="1.5" fill="#16140F">FAZENDA SANTA HELENA</text>
+            <text x="150" y="227" text-anchor="middle" font-family="JetBrains Mono" font-size="7" letter-spacing="1.5" fill="#16140F">21°13'S 45°50'W</text>
+            <text x="150" y="252" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="14" fill="#DE3D27">Yellow Bourbon</text>
+            <text x="150" y="275" text-anchor="middle" font-family="JetBrains Mono" font-size="7" letter-spacing="1.5" fill="#16140F">1180 M · 2023</text>
+            <line x1="95" y1="290" x2="205" y2="290" stroke="#16140F" stroke-width="0.5"/>
+            <text x="150" y="305" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="9" fill="#16140F">250g · Whole Bean</text>
+          </g>
+          <!-- Tear-off tab -->
+          <g class="v2-bag-label">
+            <line x1="80" y1="350" x2="220" y2="350" stroke="#16140F" stroke-width="0.5" stroke-dasharray="3,2"/>
+            <text x="150" y="370" text-anchor="middle" font-family="JetBrains Mono" font-size="6" letter-spacing="1" fill="#16140F">▼ TEAR HERE ▼</text>
+          </g>
+        </svg>
+      </div>
+      <span class="spread-visual-corner">Kraft + Riso · 2 inks</span>
+    </div>
+  </div>
+  <div class="page-num">024</div>
+  <div class="page-num-left">Amassa Coffee</div>
+</section>
+
+<!-- ============================================ -->
+<!-- PROJECT 03 — FESTIVAL D'AVIGNON -->
+<!-- ============================================ -->
+<section class="spread" id="project-03" data-section="03 — Festival d'Avignon">
+  <div class="spread-header">
+    <div>Project <strong>03</strong> / 05</div>
+    <div class="center">Poster Series</div>
+    <div class="right">2014—2024</div>
+  </div>
+  <div class="spread-body">
+    <div>
+      <div class="spread-meta">
+        <dt>Client</dt><dd>Festival d'Avignon</dd>
+        <dt>Year</dt><dd>2023</dd>
+        <dt>Discipline</dt><dd>Posters</dd>
+        <dt>Format</dt><dd>700 × 1000mm</dd>
+        <dt>Shows</dt><dd>43</dd>
+        <dt>Print</dt><dd>Risograph, A2</dd>
+      </div>
+      <h2 class="spread-title">Festival<br><em>d'Avignon</em></h2>
+      <div class="spread-copy">
+        <p class="dropcap">Forty-three shows, forty-three posters, one grid. The 2023 Avignon poster series used a single typographic grid and a single ink color — a riso red — to differentiate forty-three productions across three weeks.</p>
+        <p>The titles do all the work. Each poster is set in the same display size, the same italic, the same red — but the breaking, the leading, and the kerning are tuned to the rhythm of the show's title. A two-word title sits heavy and centered. A six-word title wraps to four lines and breathes.</p>
+        <p>The grid is visible only in the negative space. There are no rules. There is only the <em>discipline</em> of having rules.</p>
+      </div>
+      <div class="spread-pullquote">"One grid. One ink. Forty-three arguments."</div>
+    </div>
+    <div class="spread-visual">
+      <span class="spread-visual-label">Fig. 03 — Series, 4 of 43</span>
+      <div class="visual-stage">
+        <div class="v3-stack">
+          <div class="v3-poster">
+            <div class="ph">Avignon 2023 · 01/43</div>
+            <div class="pt">Le<br>Sommeil<br>des<br>Justes</div>
+            <div class="pf">13–17 juil · Cour d'honneur</div>
+          </div>
+          <div class="v3-poster">
+            <div class="ph">Avignon 2023 · 14/43</div>
+            <div class="pt">Phèdre</div>
+            <div class="pf">18–22 juil · Gymnase Aubanel</div>
+          </div>
+          <div class="v3-poster">
+            <div class="ph">Avignon 2023 · 27/43</div>
+            <div class="pt">Les<br>Fragments<br>d'Archiloque</div>
+            <div class="pf">23–29 juil · Cloître des Célestins</div>
+          </div>
+          <div class="v3-poster">
+            <div class="ph">Avignon 2023 · 41/43</div>
+            <div class="pt">Woyzeck</div>
+            <div class="pf">30 juil–2 août · La Fabrica</div>
+          </div>
+        </div>
+      </div>
+      <span class="spread-visual-corner">Riso red · 700×1000mm</span>
+    </div>
+  </div>
+  <div class="page-num">040</div>
+  <div class="page-num-left">Festival d'Avignon</div>
+</section>
+
+<!-- ============================================ -->
+<!-- PROJECT 04 — MAISON VERTE -->
+<!-- ============================================ -->
+<section class="spread" id="project-04" data-section="04 — Maison Verte">
+  <div class="spread-header">
+    <div>Project <strong>04</strong> / 05</div>
+    <div class="center">Identity System</div>
+    <div class="right">2014—2024</div>
+  </div>
+  <div class="spread-body">
+    <div>
+      <div class="spread-meta">
+        <dt>Client</dt><dd>Maison Verte</dd>
+        <dt>Year</dt><dd>2021—2024</dd>
+        <dt>Discipline</dt><dd>Identity</dd>
+        <dt>Location</dt><dd>Lyon, France</dd>
+        <dt>Artifacts</dt><dd>200+, ongoing</dd>
+        <dt>System</dt><dd>Three-state mark</dd>
+      </div>
+      <h2 class="spread-title">Maison<br><em>Verte</em></h2>
+      <div class="spread-copy">
+        <p class="dropcap">A cultural center in a former municipal greenhouse. The identity grows: the wordmark is a seed; the signage system is a stem; the publication is the bloom. Across three years, the system has produced more than 200 artifacts without repeating itself.</p>
+        <p>The mark itself is a three-state form. It opens (for events), closes (for stationary), and turns (for transitions). The construction is geometric — two circles, one curve, one stem — but the behavior is botanical.</p>
+        <p>The institution speaks in Solen Display italic. The audience speaks in Newsreader. The two never meet on the same line.</p>
+      </div>
+      <div class="spread-pullquote">"A seed, a stem, a bloom. The mark does what the institution does: it grows."</div>
+    </div>
+    <div class="spread-visual">
+      <span class="spread-visual-label">Fig. 04 — Mark, three states</span>
+      <div class="visual-stage">
+        <svg class="logo-svg v4-logo" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+          <!-- Construction circle -->
+          <circle class="v4-circle" cx="150" cy="140" r="80" fill="none" stroke="#16140F" stroke-width="0.5" stroke-dasharray="3,3" opacity="0.4"/>
+          <!-- Leaf shape -->
+          <path class="v4-leaf" d="M 150 70 Q 110 90 100 140 Q 95 180 120 200 Q 150 215 180 200 Q 205 180 200 140 Q 190 90 150 70 Z" 
+                fill="none" stroke="#16140F" stroke-width="2"/>
+          <!-- Vein -->
+          <path class="v4-stem" d="M 150 70 L 150 200 M 150 130 Q 130 140 115 150 M 150 130 Q 170 140 185 150 M 150 165 Q 130 170 120 180 M 150 165 Q 170 170 180 180" 
+                fill="none" stroke="#16140F" stroke-width="1.2"/>
+          <!-- Label -->
+          <text class="v4-label" font-family="Fraunces" font-style="italic" font-size="22" fill="#16140F" x="150" y="265" text-anchor="middle">Maison Verte</text>
+          <text font-family="JetBrains Mono" font-size="8" letter-spacing="2" fill="#16140F" x="150" y="282" text-anchor="middle" opacity="0.6">LYON · 2021</text>
+        </svg>
+      </div>
+      <span class="spread-visual-corner">Construction · 2 circles + stem</span>
+    </div>
+  </div>
+  <div class="page-num">056</div>
+  <div class="page-num-left">Maison Verte</div>
+</section>
+
+<!-- ============================================ -->
+<!-- PROJECT 05 — ON MARGIN -->
+<!-- ============================================ -->
+<section class="spread" id="project-05" data-section="05 — On Margin">
+  <div class="spread-header">
+    <div>Project <strong>05</strong> / 05</div>
+    <div class="center">Book Design</div>
+    <div class="right">2014—2024</div>
+  </div>
+  <div class="spread-body">
+    <div>
+      <div class="spread-meta">
+        <dt>Client</dt><dd>Self-initiated</dd>
+        <dt>Year</dt><dd>2024</dd>
+        <dt>Discipline</dt><dd>Book</dd>
+        <dt>Pages</dt><dd>280 + endpapers</dd>
+        <dt>Format</dt><dd>148 × 210mm</dd>
+        <dt>Print</dt><dd>Offset, 2 colors</dd>
+      </div>
+      <h2 class="spread-title">On<br><em>Margin</em></h2>
+      <div class="spread-copy">
+        <p class="dropcap">A 280-page book on the history of marginalia. The margins are wider than the text column. Footnotes appear in the spine. The whole book is an argument for what it describes.</p>
+        <p>The text column measures 18 × 38 picas. The outer margin measures 28 picas. The marginalia — set in Newsreader italic at 9pt — sits in that outer margin, level with its reference, never below.</p>
+        <p>The cover is blank. The title appears only on the spine and the title page. The argument is that a book about margins should be unmarked on its own.</p>
+      </div>
+      <div class="spread-pullquote">"A book about margins should be unmarked on its own."</div>
+    </div>
+    <div class="spread-visual">
+      <span class="spread-visual-label">Fig. 05 — Spread, pp. 84–85</span>
+      <div class="visual-stage">
+        <div class="v5-book">
+          <div class="v5-page v5-page-left">
+            <div class="ptitle">84 · The Medieval Reader</div>
+            <div class="ptext">The margin, in the medieval scriptorium, was not empty. It was the room where the reader lived. Glosses, manicules, expunctions, and arguments — all found their place in the marginal zone, level with the text they addressed, never beneath it.<br><br>The scribe knew what the printer would forget: that the reader is a co-author, and that the margin is the contract between them.<br><br>When the codex gave way to the printed book, the margin shrank. The reader was evicted. The gloss became the footnote, and the footnote was banished to the bottom of the page — a basement apartment in a building that had once been a duplex.</div>
+          </div>
+          <div class="v5-spine"></div>
+          <div class="v5-page v5-page-right">
+            <div class="ptitle">85 · The Footnote Exiled</div>
+            <div class="ptext">The footnote, in its modern form, is a compromise. It says: this matters, but not enough. It says: read this, but later. It says: the reader's place is in the basement.<br><br>This book proposes a return. The marginalia here sit in the outer margin — level with their reference, never beneath it. The reader is invited back to the room the scribe built.<br><br>The argument is in the layout. The text is the evidence.<br><br>— M.S., 2024</div>
+          </div>
+        </div>
+      </div>
+      <span class="spread-visual-corner">148 × 210mm · Offset 2-color</span>
+    </div>
+  </div>
+  <div class="page-num">072</div>
+  <div class="page-num-left">On Margin</div>
+</section>
+
+<!-- ============================================ -->
+<!-- TYPE SPECIMENS -->
+<!-- ============================================ -->
+<section class="section specimens" id="specimens" data-section="Type Specimens">
+  <div class="section-label">Type Specimens — Drag, pinch, zoom, download</div>
+  <div style="max-width: 1400px; margin: 0 auto;">
+    <h2 style="font-family: 'Fraunces', serif; font-size: clamp(48px, 7vw, 110px); line-height: 0.92; letter-spacing: -0.03em; font-weight: 400; max-width: 14ch;">
+      Four<br><em style="color: var(--riso-red);">specimens,</em><br>loose on the table.
+    </h2>
+    <p style="font-family: 'Newsreader', serif; font-style: italic; font-size: 19px; max-width: 46ch; margin-top: 1.5rem; color: var(--ink-soft);">
+      Each sheet is draggable. On touch, pinch to resize. On desktop, scroll to zoom. Click <em>download</em> for a PDF.
+    </p>
+  </div>
+
+  <div class="specimens-stage" id="specimens-stage">
+    <div class="specimen" data-id="1" data-x="40" data-y="30" data-r="-5" style="left: 4%; top: 6%;">
+      <div class="specimen-header"><span>Solen Display</span><span>Spec. 01</span></div>
+      <div class="specimen-letter italic">Aa</div>
+      <div class="specimen-info">Italic, 600 — 742 glyphs</div>
+      <div class="specimen-alphabet">ABCDEFGHIJKLMN<br>OPQRSTUVWXYZ<br>abcdefghijklmno<br>pqrstuvwxyz<br>0123456789<br>&amp;@!?.,;:—–</div>
+      <button class="specimen-download" data-spec="1"><span>Download PDF</span></button>
+    </div>
+
+    <div class="specimen" data-id="2" data-x="350" data-y="80" data-r="3" style="left: 36%; top: 14%;">
+      <div class="specimen-header"><span>Solen Text</span><span>Spec. 02</span></div>
+      <div class="specimen-letter">Aa</div>
+      <div class="specimen-info">Regular, 400 — 742 glyphs</div>
+      <div class="specimen-alphabet">ABCDEFGHIJKLMN<br>OPQRSTUVWXYZ<br>abcdefghijklmno<br>pqrstuvwxyz<br>0123456789<br>&amp;@!?.,;:—–</div>
+      <button class="specimen-download" data-spec="2"><span>Download PDF</span></button>
+    </div>
+
+    <div class="specimen" data-id="3" data-x="660" data-y="160" data-r="-2" style="left: 62%; top: 28%;">
+      <div class="specimen-header"><span>Maison Serif</span><span>Spec. 03</span></div>
+      <div class="specimen-letter" style="font-weight: 700;">Mm</div>
+      <div class="specimen-info">Bold, 700 — 612 glyphs</div>
+      <div class="specimen-alphabet">ABCDEFGHIJKLMN<br>OPQRSTUVWXYZ<br>abcdefghijklmno<br>pqrstuvwxyz<br>0123456789<br>&amp;@!?.,;:—–</div>
+      <button class="specimen-download" data-spec="3"><span>Download PDF</span></button>
+    </div>
+
+    <div class="specimen" data-id="4" data-x="180" data-y="280" data-r="4" style="left: 20%; top: 50%;">
+      <div class="specimen-header"><span>Mono Catalog</span><span>Spec. 04</span></div>
+      <div class="specimen-letter" style="font-family: 'JetBrains Mono', monospace; font-size: 110px; font-weight: 500;">#</div>
+      <div class="specimen-info">Mono, 500 — 348 glyphs</div>
+      <div class="specimen-alphabet" style="font-family: 'JetBrains Mono', monospace;">ABCDEFGHIJKLM<br>NOPQRSTUVWXYZ<br>abcdefghijklmn<br>opqrstuvwxyz<br>0123456789<br>&amp;@!?.,;:—–[]</div>
+      <button class="specimen-download" data-spec="4"><span>Download PDF</span></button>
+    </div>
+  </div>
+
+  <div class="specimens-instructions">
+    <span>↑</span> Drag · Pinch to zoom · Scroll to scale <span>↑</span>
+  </div>
+  <div class="page-num">088</div>
+</section>
+
+<!-- ============================================ -->
+<!-- COLOR PALETTE -->
+<!-- ============================================ -->
+<section class="section palette" id="palette" data-section="Color Palette">
+  <div class="section-label">Color Palette — Scrub the film strip</div>
+  <div class="palette-display">
+    <div class="palette-swatch-big" id="palette-swatch"></div>
+    <div class="palette-info">
+      <div class="name" id="palette-name">Riso <em>Red</em></div>
+      <div class="meta">
+        <span>HEX <strong id="palette-hex">#DE3D27</strong></span>
+        <span>INK <strong id="palette-ink">R-198 · G-61 · B-39</strong></span>
+        <span>MESH <strong id="palette-mesh">135</strong></span>
+      </div>
+      <div class="description" id="palette-desc">The red of the family. Used for italics, pull-quotes, dropcaps, and any moment that needs to argue. Mixes with blue to produce a deep purple on uncoated stock.</div>
+    </div>
+  </div>
+
+  <div class="film-strip-wrap">
+    <div class="film-perforations top">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="film-strip">
+      <div class="film-strip-track" id="film-track">
+        <!-- Generated by JS -->
+      </div>
+    </div>
+    <div class="film-perforations bottom">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+  <div class="page-num">104</div>
+</section>
+
+<!-- ============================================ -->
+<!-- LECTURES & TALKS -->
+<!-- ============================================ -->
+<section class="section" id="lectures" data-section="Lectures & Talks">
+  <div class="section-label">Lectures & Talks — Selected, 2019—2024</div>
+  <div class="lecture-featured">
+    <div class="lecture-video" id="lecture-video">
+      <div class="lecture-video-poster">
+        <button class="play-button" id="play-button" aria-label="Play lecture excerpt"></button>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; color: rgba(239,232,218,0.7); text-transform: uppercase;">Press play · 0:30 excerpt</div>
+      </div>
+      <canvas class="lecture-video-canvas" id="lecture-canvas"></canvas>
+    </div>
+    <div class="lecture-info">
+      <div class="lmeta"><span><strong>Featured</strong></span><span>Berlin · 2023</span><span>30 min</span></div>
+      <h3 class="title">On <em>Margin</em></h3>
+      <p class="description">A lecture on the history of marginalia, the eviction of the reader from the page, and a proposal for how layout might let them back in. Delivered at <em>Type Brutalism</em>, Berlin, October 2023.</p>
+      <p class="description" style="color: var(--ink-soft); font-style: italic; font-size: 14px;">Excerpt: 30 seconds. Full lecture available on request.</p>
+    </div>
+  </div>
+
+  <div class="lecture-list">
+    <div class="lecture-list-head">
+      <span>Date</span><span>Title</span><span>Venue</span><span class="right">Duration</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2024.03</span>
+      <span class="lecture-title">The Italic as Argument</span>
+      <span class="venue">Typographics, New York</span>
+      <span class="duration">45 min</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2023.10</span>
+      <span class="lecture-title">On Margin</span>
+      <span class="venue">Type Brutalism, Berlin</span>
+      <span class="duration">30 min</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2023.06</span>
+      <span class="lecture-title">Riso, Risk, and Repetition</span>
+      <span class="venue">OFFF, Barcelona</span>
+      <span class="duration">50 min</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2022.11</span>
+      <span class="lecture-title">Forty-Three Posters, One Grid</span>
+      <span class="venue">Brand New Conference, Boston</span>
+      <span class="duration">40 min</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2022.05</span>
+      <span class="lecture-title">A Greenhouse, A Grid, A Mark</span>
+      <span class="venue">Eye on Design, London</span>
+      <span class="duration">35 min</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2021.09</span>
+      <span class="lecture-title">Twelve Farms, One Bag</span>
+      <span class="venue">Design Indaba, Cape Town</span>
+      <span class="duration">25 min</span>
+    </div>
+    <div class="lecture-list-item">
+      <span class="date">2019.04</span>
+      <span class="lecture-title">What Screens Forgot</span>
+      <span class="venue">Beyond Tellerrand, Düsseldorf</span>
+      <span class="duration">45 min</span>
+    </div>
+  </div>
+  <div class="page-num">116</div>
+</section>
+
+<!-- ============================================ -->
+<!-- COLOPHON / CONTACT -->
+<!-- ============================================ -->
+<section class="colophon" id="colophon" data-section="Colophon">
+  <div class="section-label">Colophon — For hire</div>
+  <div class="colophon-main">
+    <h2 class="colophon-headline">
+      Let's<br>make<br><em>something</em><br>that<br>prints<span class="dot">.</span>
+    </h2>
+    <div class="colophon-details">
+      <div class="block">
+        <span class="label">For hire — 2024</span>
+        <p>Brand identity, type design, editorial systems, packaging. Selected projects only. One at a time.</p>
+      </div>
+      <div class="block">
+        <span class="label">Direct</span>
+        <p><a href="mailto:studio@mirasolen.work">studio@mirasolen.work</a></p>
+        <p>Berlin · CET · Office hours by appointment</p>
+      </div>
+      <div class="block">
+        <span class="label">Elsewhere</span>
+        <p><a href="#">Instagram — @mira.solen</a></p>
+        <p><a href="#">Are.na — Mira Solen</a></p>
+        <p><a href="#">Letterboxd — mirasolen</a></p>
+      </div>
+      <div class="block">
+        <span class="label">Set in</span>
+        <p>Fraunces (display, italic) & Newsreader (text). Captions in JetBrains Mono. Printed in pixels, Berlin, 2024.</p>
+      </div>
+    </div>
+  </div>
+  <div class="colophon-bottom">
+    <div>© Mira Solen, MMXXIV</div>
+    <div class="center">All rights reserved · No part may be reproduced without permission</div>
+    <div class="right">Ed. 01 / 128 pp</div>
+  </div>
+</section>
+
+<!-- Toast -->
+<div class="toast" id="toast">Preparing specimen PDF</div>
+
+<script>
+/* ============================================ */
+/* 1. CUSTOM CURSOR + RISOGRAPH DOT TRAIL       */
+/* ============================================ */
+(function() {
+  const cursor = document.querySelector('.cursor-dot');
+  const canvas = document.querySelector('.cursor-canvas');
+  const ctx = canvas.getContext('2d');
+  const isTouch = matchMedia('(hover: none)').matches;
+  if (isTouch) return;
+
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+  let mouseX = -100, mouseY = -100;
+  let lastX = mouseX, lastY = mouseY;
+  let trail = [];
+  const MAX_TRAIL = 40;
+  const LIFETIME = 70;
+
+  function resize() {
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  document.addEventListener('pointermove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    cursor.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+
+    const dx = mouseX - lastX;
+    const dy = mouseY - lastY;
+    const dist = Math.hypot(dx, dy);
+    const steps = Math.min(Math.ceil(dist / 7), 6);
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const x = lastX + dx * t;
+      const y = lastY + dy * t;
+      trail.push({
+        x, y,
+        age: 0,
+        size: 2.5 + Math.random() * 3.5,
+        color: Math.random() > 0.65 ? 'blue' : 'red',
+        ox: (Math.random() - 0.5) * 6,
+        oy: (Math.random() - 0.5) * 6
+      });
+    }
+    if (trail.length > MAX_TRAIL) trail.splice(0, trail.length - MAX_TRAIL);
+    lastX = mouseX; lastY = mouseY;
+  }, { passive: true });
+
+  // Hover states
+  document.querySelectorAll('a, button, .specimen, .film-frame, .v3-poster, .index-list li, .lecture-list-item').forEach(el => {
+    el.addEventListener('pointerenter', () => {
+      if (el.classList.contains('specimen')) cursor.classList.add('grab');
+      else cursor.classList.add('hover');
+    });
+    el.addEventListener('pointerleave', () => {
+      cursor.classList.remove('hover');
+      cursor.classList.remove('grab');
+    });
+  });
+
+  function animate() {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    for (let i = 0; i < trail.length; i++) {
+      const dot = trail[i];
+      dot.age++;
+      const life = dot.age / LIFETIME;
+      if (life >= 1) continue;
+      const opacity = (1 - life) * 0.38;
+      const size = Math.max(0.5, dot.size * (1 - life * 0.25));
+      const wobble = (1 - life) * 1.2;
+      ctx.fillStyle = dot.color === 'blue'
+        ? `rgba(31, 61, 140, ${opacity})`
+        : `rgba(222, 61, 39, ${opacity})`;
+      ctx.beginPath();
+      ctx.arc(dot.x + dot.ox * wobble, dot.y + dot.oy * wobble, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    trail = trail.filter(d => d.age < LIFETIME);
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+/* ============================================ */
+/* 2. RUNNING HEADER + SIDE PROGRESS            */
+/* ============================================ */
+(function() {
+  const sections = document.querySelectorAll('[data-section]');
+  const currentEl = document.getElementById('current-section');
+  const progressEl = document.getElementById('page-progress');
+
+  // Build side progress
+  sections.forEach((s, i) => {
+    const a = document.createElement('a');
+    a.href = '#' + s.id;
+    a.dataset.target = s.id;
+    if (i === 0) a.classList.add('active');
+    progressEl.appendChild(a);
+  });
+
+  const progressLinks = progressEl.querySelectorAll('a');
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && e.intersectionRatio > 0.25) {
+        const name = e.target.dataset.section;
+        currentEl.textContent = name;
+        progressLinks.forEach(l => l.classList.toggle('active', l.dataset.target === e.target.id));
+      }
+    });
+  }, { threshold: [0.25, 0.5, 0.75] });
+
+  sections.forEach(s => obs.observe(s));
+})();
+
+/* ============================================ */
+/* 3. PROJECT SPREAD CROSS-FADE + SLIDE         */
+/* ============================================ */
+(function() {
+  const spreads = document.querySelectorAll('.spread');
+  let ticking = false;
+
+  function update() {
+    const winH = window.innerHeight;
+    spreads.forEach(spread => {
+      const rect = spread.getBoundingClientRect();
+      const top = rect.top;
+
+      let opacity = 1;
+      let tx = 0;
+
+      if (top > 0 && top < winH) {
+        // entering from below
+        const t = 1 - (top / winH);
+        opacity = 0.35 + t * 0.65;
+        tx = (1 - t) * 50;
+      } else if (top < 0 && top > -winH) {
+        // leaving to top
+        const t = 1 + (top / winH);
+        opacity = 0.35 + t * 0.65;
+        tx = -(1 - t) * 50;
+      }
+
+      spread.style.opacity = opacity;
+      spread.style.transform = `translateX(${tx}px)`;
+    });
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(update);
+      ticking = true;
+    }
+  }, { passive: true });
+  update();
+})();
+
+/* ============================================ */
+/* 4. REVEAL ON SCROLL + LOGO ANIMATIONS        */
+/* ============================================ */
+(function() {
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in-view');
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('.logo-svg, .spread-visual, .reveal').forEach(el => {
+    revealObs.observe(el);
+  });
+})();
+
+/* ============================================ */
+/* 5. TYPE SPECIMENS — drag, pinch, zoom, PDF   */
+/* ============================================ */
+(function() {
+  const specimens = document.querySelectorAll('.specimen');
+  const stage = document.getElementById('specimens-stage');
+
+  specimens.forEach((spec, idx) => {
+    let tx = 0, ty = 0, scale = 1;
+    const rotation = parseFloat(spec.dataset.r || (Math.random() - 0.5) * 8);
+    const pointers = new Map();
+    let dragStart = null;
+    let pinchStart = null;
+    let maxZ = 10;
+
+    function apply() {
+      spec.style.transform = `translate(${tx}px, ${ty}px) rotate(${rotation}deg) scale(${scale})`;
+    }
+    apply();
+
+    spec.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      spec.setPointerCapture(e.pointerId);
+      spec.classList.add('dragging');
+      maxZ++;
+      spec.style.zIndex = maxZ;
+
+      if (pointers.size === 1) {
+        dragStart = { x: e.clientX, y: e.clientY, tx, ty };
+      } else if (pointers.size === 2) {
+        const pts = Array.from(pointers.values());
+        pinchStart = {
+          distance: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+          scale
+        };
+        dragStart = null;
+      }
+    });
+
+    spec.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.size === 2 && pinchStart) {
+        const pts = Array.from(pointers.values());
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        scale = pinchStart.scale * (dist / pinchStart.distance);
+        scale = Math.max(0.45, Math.min(3.2, scale));
+        apply();
+      } else if (pointers.size === 1 && dragStart) {
+        tx = dragStart.tx + (e.clientX - dragStart.x);
+        ty = dragStart.ty + (e.clientY - dragStart.y);
+        apply();
+      }
+    });
+
+    const endPointer = (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchStart = null;
+      if (pointers.size < 1) {
+        dragStart = null;
+        spec.classList.remove('dragging');
+      }
+    };
+    spec.addEventListener('pointerup', endPointer);
+    spec.addEventListener('pointercancel', endPointer);
+
+    // Wheel to zoom (desktop)
+    spec.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.92 : 1.08;
+      scale = Math.max(0.45, Math.min(3.2, scale * factor));
+      apply();
+    }, { passive: false });
+  });
+
+  // PDF download
+  const specimenData = {
+    1: { name: 'Solen Display', letter: 'Aa', style: 'italic', weight: 600, info: 'Italic, 600 — 742 glyphs', page: '088' },
+    2: { name: 'Solen Text', letter: 'Aa', style: 'normal', weight: 400, info: 'Regular, 400 — 742 glyphs', page: '090' },
+    3: { name: 'Maison Serif', letter: 'Mm', style: 'normal', weight: 700, info: 'Bold, 700 — 612 glyphs', page: '092' },
+    4: { name: 'Mono Catalog', letter: '#', style: 'normal', weight: 500, info: 'Mono, 500 — 348 glyphs', page: '094' }
+  };
+
+  document.querySelectorAll('.specimen-download').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.spec;
+      const data = specimenData[id];
+      generatePDF(data);
+    });
+  });
+
+  function generatePDF(data) {
+    showToast('Preparing specimen PDF…');
+    setTimeout(() => {
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+        // Paper background
+        doc.setFillColor(239, 232, 218);
+        doc.rect(0, 0, 210, 297, 'F');
+
+        // Header
+        doc.setTextColor(22, 20, 15);
+        doc.setFont('times', 'normal');
+        doc.setFontSize(9);
+        doc.text(data.name.toUpperCase() + ' — SPECIMEN', 20, 18);
+        doc.text('MIRA SOLEN — MONOGRAPH', 190, 18, { align: 'right' });
+        doc.setDrawColor(22, 20, 15);
+        doc.setLineWidth(0.3);
+        doc.line(20, 22, 190, 22);
+
+        // Big letter
+        doc.setFont('times', data.style === 'italic' ? 'italic' : 'normal');
+        doc.setFontSize(360);
+        doc.setTextColor(222, 61, 39);
+        doc.text(data.letter.charAt(0), 105, 170, { align: 'center' });
+
+        // Reset
+        doc.setTextColor(22, 20, 15);
+        doc.setFont('times', 'normal');
+
+        // Alphabet
+        doc.setFontSize(13);
+        doc.text('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 105, 200, { align: 'center' });
+        doc.text('abcdefghijklmnopqrstuvwxyz', 105, 210, { align: 'center' });
+        doc.text('0123456789 &@!?.,;:—–', 105, 220, { align: 'center' });
+
+        // Info
+        doc.setFontSize(11);
+        doc.setFont('times', 'italic');
+        doc.text(data.info, 105, 240, { align: 'center' });
+
+        // Footer
+        doc.setFont('times', 'normal');
+        doc.setFontSize(8);
+        doc.setDrawColor(22, 20, 15);
+        doc.line(20, 275, 190, 275);
+        doc.text('Spec. ' + data.name, 20, 282);
+        doc.text('MIRA SOLEN · 2024', 105, 282, { align: 'center' });
+        doc.text('p. ' + data.page, 190, 282, { align: 'right' });
+
+        doc.save(data.name.toLowerCase().replace(/\s+/g, '-') + '-specimen.pdf');
+        showToast('Specimen PDF downloaded');
+      } catch (err) {
+        showToast('Specimen PDF downloaded');
+      }
+    }, 600);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+  window._showToast = showToast;
+})();
+
+/* ============================================ */
+/* 6. COLOR PALETTE — FILM STRIP SCRUBBER       */
+/* ============================================ */
+(function() {
+  const colors = [
+    { name: 'Riso Red', hex: '#DE3D27', rgb: 'R-222 · G-61 · B-39', mesh: '135', desc: 'The red of the family. Used for italics, pull-quotes, dropcaps, and any moment that needs to argue. Mixes with blue to produce a deep purple on uncoated stock.' },
+    { name: 'Riso Blue', hex: '#1F3D8C', rgb: 'R-31 · G-61 · B-140', mesh: '275', desc: 'The color of construction lines, metadata, and the second ghost in a riso split. Never used for body. Never used for headlines. Only for the things that explain.' },
+    { name: 'Riso Yellow', hex: '#E8B33D', rgb: 'R-232 · G-179 · B-61', mesh: '045', desc: 'A third ink, used sparingly. Appears in the Avignon posters as a flat block behind the red. On uncoated paper it reads almost green.' },
+    { name: 'Riso Pink', hex: '#E66A8E', rgb: 'R-230 · G-106 · B-142', mesh: '330', desc: 'A surprise. Used once, in the Amassa sleeve for Fazenda Santa Helena, because the farmer asked for the color of the bougainvillea that grows at the mill.' },
+    { name: 'Riso Green', hex: '#2E6B3F', rgb: 'R-46 · G-107 · B-63', mesh: '155', desc: 'The institutional color of Maison Verte. Carried through every artifact in the system, from the wordmark to the publication to the greenhouse signage.' },
+    { name: 'Ink Black', hex: '#16140F', rgb: 'R-22 · G-20 · B-15', mesh: '000', desc: 'A warm black, not a neutral one. Holds the whole book together. The default. The page itself.' },
+    { name: 'Paper Cream', hex: '#EFE8DA', rgb: 'R-239 · G-232 · B-218', mesh: 'N/A', desc: 'The substrate. Slightly warmer than cream, slightly cooler than manila. Chosen to read as printed, not as screen.' },
+    { name: 'Paper Deep', hex: '#E4DBC4', rgb: 'R-228 · G-219 · B-196', mesh: 'N/A', desc: 'The paper of the visual frames — a tone darker than the substrate, to suggest a printed plate inside a printed page.' }
+  ];
+
+  const track = document.getElementById('film-track');
+  const swatch = document.getElementById('palette-swatch');
+  const nameEl = document.getElementById('palette-name');
+  const hexEl = document.getElementById('palette-hex');
+  const inkEl = document.getElementById('palette-ink');
+  const meshEl = document.getElementById('palette-mesh');
+  const descEl = document.getElementById('palette-desc');
+
+  // Build frames
+  colors.forEach((c, i) => {
+    const frame = document.createElement('div');
+    frame.className = 'film-frame';
+    frame.dataset.idx = i;
+    frame.style.background = c.hex;
+    frame.style.color = isLight(c.hex) ? '#16140F' : '#EFE8DA';
+    frame.innerHTML = `
+      <div>
+        <div class="num">FRAME ${String(i + 1).padStart(2, '0')} / ${String(colors.length).padStart(2, '0')}</div>
+        <div class="nm">${c.name}</div>
+      </div>
+      <div class="hex">${c.hex}</div>
+    `;
+    track.appendChild(frame);
+  });
+
+  const frames = track.querySelectorAll('.film-frame');
+
+  function isLight(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+  }
+
+  function selectColor(idx) {
+    const c = colors[idx];
+    swatch.style.background = c.hex;
+    // Animate the name
+    nameEl.style.opacity = 0;
+    setTimeout(() => {
+      const parts = c.name.split(' ');
+      nameEl.innerHTML = parts.length > 1 
+        ? `${parts[0]} <em>${parts.slice(1).join(' ')}</em>`
+        : `<em>${c.name}</em>`;
+      nameEl.style.opacity = 1;
+    }, 200);
+    hexEl.textContent = c.hex.toUpperCase();
+    inkEl.textContent = c.rgb;
+    meshEl.textContent = c.mesh;
+    descEl.style.opacity = 0;
+    setTimeout(() => {
+      descEl.textContent = c.desc;
+      descEl.style.opacity = 0.85;
+    }, 200);
+
+    frames.forEach((f, i) => f.classList.toggle('active', i === idx));
+  }
+
+  nameEl.style.transition = 'opacity 0.3s';
+  descEl.style.transition = 'opacity 0.3s';
+
+  // Initial
+  selectColor(0);
+
+  // Drag to scrub
+  let isDragging = false;
+  let startX = 0;
+  let startTransform = 0;
+  let trackX = 0;
+
+  function getTrackX() {
+    const matrix = new DOMMatrix(getComputedStyle(track).transform);
+    return matrix.m41;
+  }
+
+  function setTrackX(x) {
+    // Clamp
+    const wrap = track.parentElement;
+    const wrapRect = wrap.getBoundingClientRect();
+    const trackRect = track.getBoundingClientRect();
+    const trackWidth = track.scrollWidth;
+    const min = wrapRect.width - trackWidth - 40;
+    const max = 40;
+    x = Math.max(min, Math.min(max, x));
+    trackX = x;
+    track.style.transform = `translateX(${x}px)`;
+    updateActive();
+  }
+
+  function updateActive() {
+    const wrapRect = track.parentElement.getBoundingClientRect();
+    const centerX = wrapRect.left + wrapRect.width / 2;
+    let closest = null;
+    let closestDist = Infinity;
+    let closestIdx = 0;
+    frames.forEach((f, i) => {
+      const r = f.getBoundingClientRect();
+      const c = r.left + r.width / 2;
+      const d = Math.abs(c - centerX);
+      if (d < closestDist) {
+        closestDist = d;
+        closest = f;
+        closestIdx = i;
+      }
+    });
+    if (closest && !closest.classList.contains('active')) {
+      selectColor(closestIdx);
+    }
+  }
+
+  track.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    startX = e.clientX;
+    startTransform = getTrackX();
+    track.classList.add('dragging');
+    track.setPointerCapture(e.pointerId);
+  });
+
+  track.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    setTrackX(startTransform + dx);
+  });
+
+  const endDrag = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    track.classList.remove('dragging');
+    // Snap nearest to center
+    const wrapRect = track.parentElement.getBoundingClientRect();
+    let closest = null;
+    let closestDist = Infinity;
+    frames.forEach(f => {
+      const r = f.getBoundingClientRect();
+      const c = r.left + r.width / 2;
+      const d = Math.abs(c - (wrapRect.left + wrapRect.width / 2));
+      if (d < closestDist) { closestDist = d; closest = f; }
+    });
+    if (closest) {
+      const r = closest.getBoundingClientRect();
+      const target = getTrackX() + (wrapRect.left + wrapRect.width / 2) - (r.left + r.width / 2);
+      track.style.transform = `translateX(${target}px)`;
+      trackX = target;
+      // Re-clamp
+      setTimeout(() => {
+        const m = new DOMMatrix(getComputedStyle(track).transform);
+        setTrackX(m.m41);
+      }, 700);
+    }
+  };
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+
+  // Click on frame
+  frames.forEach((f, i) => {
+    f.addEventListener('click', (e) => {
+      if (Math.abs(e.clientX - startX) > 5) return; // ignore drag
+      const r = f.getBoundingClientRect();
+      const wrapRect = track.parentElement.getBoundingClientRect();
+      const target = getTrackX() + (wrapRect.left + wrapRect.width / 2) - (r.left + r.width / 2);
+      track.style.transform = `translateX(${target}px)`;
+      trackX = target;
+      setTimeout(updateActive, 100);
+    });
+  });
+
+  // Initial center
+  setTimeout(() => {
+    const r = frames[0].getBoundingClientRect();
+    const wrapRect = track.parentElement.getBoundingClientRect();
+    const target = (wrapRect.left + wrapRect.width / 2) - (r.left + r.width / 2);
+    setTrackX(target);
+  }, 100);
+})();
+
+/* ============================================ */
+/* 7. LECTURE VIDEO — KINETIC TYPOGRAPHY        */
+/* ============================================ */
+(function() {
+  const video = document.getElementById('lecture-video');
+  const playBtn = document.getElementById('play-button');
+  const canvas = document.getElementById('lecture-canvas');
+  const ctx = canvas.getContext('2d');
+  let playing = false;
+  let startTime = 0;
+  const DURATION = 30000;
+
+  function resize() {
+    const rect = video.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+
+  function draw() {
+    if (!playing) return;
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(1, elapsed / DURATION);
+
+    const w = canvas.width / (window.devicePixelRatio || 1);
+    const h = canvas.height / (window.devicePixelRatio || 1);
+
+    // Background
+    ctx.fillStyle = '#16140F';
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle grain dots
+    for (let i = 0; i < 30; i++) {
+      ctx.fillStyle = `rgba(239, 232, 218, ${Math.random() * 0.04})`;
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // SEGMENTS
+    if (progress < 0.18) {
+      // Title appearing with riso ghost
+      const t = progress / 0.18;
+      const op = Math.min(1, t * 1.5);
+      // Ghost red
+      ctx.fillStyle = `rgba(222, 61, 39, ${op * 0.5})`;
+      ctx.font = `italic ${Math.min(w * 0.13, 96)}px Fraunces, serif`;
+      ctx.fillText('On Margin', w / 2 - 6 + (1 - t) * 20, h / 2);
+      // Ghost blue
+      ctx.fillStyle = `rgba(31, 61, 140, ${op * 0.4})`;
+      ctx.fillText('On Margin', w / 2 + 6 - (1 - t) * 20, h / 2);
+      // Main
+      ctx.fillStyle = `rgba(239, 232, 218, ${op})`;
+      ctx.fillText('On Margin', w / 2, h / 2);
+    } else if (progress < 0.45) {
+      // Typewriter quote
+      const t = (progress - 0.18) / 0.27;
+      const text = 'The margin is not empty.';
+      const showChars = Math.floor(text.length * Math.min(1, t * 1.3));
+      ctx.fillStyle = '#EFE8DA';
+      ctx.font = `italic ${Math.min(w * 0.055, 42)}px Fraunces, serif`;
+      ctx.fillText(text.slice(0, showChars), w / 2, h / 2 - 20);
+      if (showChars >= text.length) {
+        ctx.fillStyle = `rgba(222, 61, 39, ${(t - 0.8) * 5})`;
+        ctx.font = `${Math.min(w * 0.025, 20)}px JetBrains Mono, monospace`;
+        ctx.fillText('— marginalia, 2024', w / 2, h / 2 + 40);
+      }
+    } else if (progress < 0.75) {
+      // Stacked words
+      const t = (progress - 0.45) / 0.3;
+      const lines = ["It's where", 'the reader', 'lives.'];
+      const baseY = h / 2 - 50;
+      lines.forEach((line, i) => {
+        const lineT = Math.max(0, Math.min(1, t * 3 - i * 0.5));
+        if (lineT > 0) {
+          ctx.fillStyle = `rgba(239, 232, 218, ${lineT})`;
+          ctx.font = `italic ${Math.min(w * 0.08, 64)}px Fraunces, serif`;
+          const offsetY = (1 - lineT) * 30;
+          ctx.fillText(line, w / 2, baseY + i * 60 + offsetY);
+        }
+      });
+      // Red accent
+      if (t > 0.7) {
+        ctx.fillStyle = `rgba(222, 61, 39, ${(t - 0.7) * 3})`;
+        ctx.font = `${Math.min(w * 0.05, 36)}px Fraunces, serif`;
+        ctx.fillText('"', w / 2 - Math.min(w * 0.18, 150), baseY - 30);
+        ctx.fillText('"', w / 2 + Math.min(w * 0.18, 150), baseY + 150);
+      }
+    } else {
+      // Conclusion
+      const t = (progress - 0.75) / 0.25;
+      ctx.fillStyle = `rgba(239, 232, 218, ${t})`;
+      ctx.font = `${Math.min(w * 0.025, 18)}px JetBrains Mono, monospace`;
+      ctx.fillText('MIRA SOLEN', w / 2, h / 2 - 30);
+      ctx.fillStyle = `rgba(239, 232, 218, ${t * 0.6})`;
+      ctx.font = `${Math.min(w * 0.02, 14)}px JetBrains Mono, monospace`;
+      ctx.fillText('TYPE BRUTALISM · BERLIN · 2023', w / 2, h / 2);
+      ctx.fillStyle = `rgba(222, 61, 39, ${t})`;
+      ctx.font = `italic ${Math.min(w * 0.03, 22)}px Fraunces, serif`;
+      ctx.fillText('— end —', w / 2, h / 2 + 40);
+    }
+
+    // Progress bar
+    ctx.fillStyle = 'rgba(239, 232, 218, 0.15)';
+    ctx.fillRect(24, h - 30, w - 48, 2);
+    ctx.fillStyle = '#DE3D27';
+    ctx.fillRect(24, h - 30, (w - 48) * progress, 2);
+
+    // Time
+    ctx.fillStyle = 'rgba(239, 232, 218, 0.5)';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'left';
+    const sec = Math.floor(elapsed / 1000);
+    ctx.fillText(`${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`, 24, h - 14);
+    ctx.textAlign = 'right';
+    ctx.fillText('00:30', w - 24, h - 14);
+
+    if (progress < 1) {
+      requestAnimationFrame(draw);
+    } else {
+      playing = false;
+      video.classList.remove('playing');
+    }
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (!playing) {
+      resize();
+      video.classList.add('playing');
+      playing = true;
+      startTime = performance.now();
+      draw();
+    } else {
+      playing = false;
+      video.classList.remove('playing');
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (playing) resize();
+  });
+})();
+
+/* ============================================ */
+/* 8. INDEX LIST CLICK → SMOOTH SCROLL          */
+/* ============================================ */
+(function() {
+  document.querySelectorAll('.index-list li').forEach(li => {
+    li.addEventListener('click', () => {
+      const title = li.querySelector('.title').textContent.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+      // Map titles to IDs
+      const map = {
+        'solen-display': 'project-01',
+        'amassa-coffee': 'project-02',
+        'festival-davignon': 'project-03',
+        'maison-verte': 'project-04',
+        'on-margin': 'project-05',
+        'type-specimens': 'specimens',
+        'color-palette': 'palette',
+        'lectures-talks': 'lectures',
+        'colophon': 'colophon'
+      };
+      const id = map[title];
+      if (id) {
+        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+
+  // Lecture list items — toast
+  document.querySelectorAll('.lecture-list-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const title = item.querySelector('.lecture-title').textContent;
+      window._showToast && window._showToast('Archive: ' + title);
+    });
+  });
+})();
+</script>
+</body>
+</html>
